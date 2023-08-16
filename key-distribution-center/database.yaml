@@ -1,0 +1,22 @@
+kdc_port: ":5232"
+kerberos_token: "MEGAKUUL187SALAT"
+user_principals:
+    - username: "Meister Proper"
+      password: "Salat4"
+      userid: 1
+    - username: "Kater Karlo"
+      password: "Simsalabim12"
+      userid: 2
+    - username: "Donald Truck"
+      password: "ichbinreich123"
+      userid: 3
+    - username: "Dagobert Truck"
+      password: "ichliebegeld123"
+      userid: 4
+service_principals:
+    - name: "dc"
+      key: "12345"
+    - name: "fs"
+      key: "54321"
+    - name: "rdsh"
+      key: "32145"
