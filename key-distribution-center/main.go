@@ -1,14 +1,16 @@
-package main
+package kdc
 
 import (
 	"github.com/spf13/viper"
 	"fmt"
 	"os"
 	"net"
+	"sync"
+	"github.com/megakuul/kerberos-sim/key-distribution-center/proto"
 )
 
 type Database struct {
-	Kdc_Port string `mapstructure:"kdc_port"`
+	KDC_Port string `mapstructure:"kdc_port"`
 	Kerberos_Token string `mapstructure:"kerberos_token"`
 	User_Principals []UserPrincipal `mapstructure:"user_principals"`
 	Service_Principals []ServicePrincipal `mapstructure:"service_principals"`
@@ -45,44 +47,80 @@ func LoadDatabase() (Database, error) {
 	return database, nil
 }
 
-
-func main() {
-	db, err := LoadDatabase()
+func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
+	defer wg.Done()
+	
+	addr, err := net.ResolveUDPAddr("udp", port)
 	if err!=nil {
-		fmt.Fprintf(os.Stderr, "Invalid database config [ERR]:\n%s\n", err)
-		return
-	}
-
-	addr, err := net.ResolveUDPAddr("udp", db.Kdc_Port)
-	if err!=nil{
-		fmt.Fprintf(os.Stderr, "Failed to start server [ERR]:\n%s\n", err)
+		errchan<-err
 		return
 	}
 
 	conn, err := net.ListenUDP("udp", addr)
 	if err!=nil {
-		fmt.Fprintf(os.Stderr, "Failed to start server [ERR]:\n%s\n", err)
+		errchan<-err
 		return
 	}
 	defer conn.Close()
+	fmt.Printf("Startet TGS %v\n", addr.Port)
 
-	fmt.Printf("Key-Distribution-Center listening on UDP [%s]\n", db_Kdc_Port)
-	
 	buffer := make([]byte, 1024)
 
 	for {
 		n, addr, err := conn.ReadFromUDP(buffer)
 		if err!=nil {
-			fmt.Fprintf(os.Stderr, "Cannot read req [ERR]:\n%s\n", err)
+			errchan<-err
 			continue
 		}
-
-		fmt.Printf("Received %d bytes from %s: %s\n", n, addr, string(buffer[:n]))
-
-		response := []byte("Wazzzzzup from KDC")
-		_, err = conn.WriteToUDP(response, addr)
-		if err!=nil {
-			fmt.Fprintln(os.Stderr, "Cannot send res [ERR]:\n%s\n", err)
+		req := &proto.KDCMessage{}
+		if err := proto.Unmarshal(buffer[:n], req); err != nil {
+			if _,err = conn.WriteToUDP([]byte(
+				fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err)
+			), addr); err != nil {
+				errchan<-err
+			}
+			continue
 		}
+		
+		fmt.Printf("Read this shit %s\n", buffer[:n])
+		switch msg := req.Msg.(type) {
+		case *proto.KDCMessage_tgtreq:
+			fmt.Println("Got a TGT Request")
+		case *proto.KDCMessage_tgsreq:
+			fmt.Println("Got a TGS Request")
+		default:
+			fmt.Println("Unknown type")
+		}
+		
+		_,err = conn.WriteToUDP([]byte("I do something"), addr)
+		if err!=nil {
+			errchan<-err
+			continue
+		}	
 	}
+}
+
+func main() {
+	db, err := LoadDatabase()
+	if err!=nil {
+		fmt.Fprintf(os.Stderr, "[ERR]:\n%s\n", err)
+		os.Exit(1)
+	}
+
+	var wg sync.WaitGroup
+	errch := make(chan error)
+
+	wg.Add(1)
+	go StartKDC(db.KDC_Port, &wg, errch)
+	
+	go func() {
+		for err := range errch {
+			if err!=nil {
+				fmt.Fprintf(os.Stderr, "[Err]:\n%s\n")
+				os.Exit(1)
+			}
+		}
+	}()
+
+	wg.Wait()
 }

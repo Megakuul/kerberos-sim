@@ -1,4 +1,4 @@
-module github.com/Megakuul/kerberos-sim/key-distribution-center
+module github.com/megakuul/kerberos-sim/key-distribution-center
 
 go 1.18
 

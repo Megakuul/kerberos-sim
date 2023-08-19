@@ -1,0 +1,28 @@
+syntax = "proto3"
+
+package proto;
+
+message TGTRequest {
+	string userid = 1;
+}
+
+message TGTResponse {
+	string tgskey = 1;
+}
+
+message TGSRequest {
+	string tgskey = 1;
+}
+
+message TGSResponse {
+	string svckey = 1;
+}
+
+message KDCMessage {
+	oneof msg {
+		TGTRequest tgtreq = 1;
+		TGTResponse tgtres = 2;
+		TGSRequest tgsreq = 3;
+		TGSResponse tgsres = 4;
+	}
+}

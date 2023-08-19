@@ -1,4 +1,5 @@
-kdc_port: ":5232"
+tgt_port: ":5232"
+tgs_port: ":5233"
 kerberos_token: "MEGAKUUL187SALAT"
 user_principals:
     - username: "Meister Proper"
