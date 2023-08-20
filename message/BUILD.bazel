@@ -1,0 +1,51 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+proto_library(
+    name = "proto_proto",
+    srcs = ["kdcmessage.proto"],
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "proto_go_proto",
+    importpath = "github.com/megakuul/kerberos-sim/proto",
+    proto = ":proto_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "proto",
+    embed = [":proto_go_proto"],
+    importpath = "github.com/megakuul/kerberos-sim/proto",
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "ticket_go_proto",
+    importpath = "github.com/megakuul/kerberos-sim/ticket",
+    proto = ":proto_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "ticket",
+    embed = [":ticket_go_proto"],
+    importpath = "github.com/megakuul/kerberos-sim/ticket",
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "message_go_proto",
+    importpath = "github.com/megakuul/kerberos-sim/message",
+    proto = ":proto_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "message",
+    embed = [":message_go_proto"],
+    importpath = "github.com/megakuul/kerberos-sim/message",
+    visibility = ["//visibility:public"],
+)

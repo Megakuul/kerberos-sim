@@ -1,4 +1,4 @@
-package kdc
+package main
 
 import (
 	"github.com/spf13/viper"
@@ -6,8 +6,11 @@ import (
 	"os"
 	"net"
 	"sync"
-	"github.com/megakuul/kerberos-sim/key-distribution-center/proto"
+	"log"
+	"github.com/megakuul/kerberos-sim/message"
+	"google.golang.org/protobuf/proto"
 )
+
 
 type Database struct {
 	KDC_Port string `mapstructure:"kdc_port"`
@@ -33,6 +36,8 @@ func LoadDatabase() (Database, error) {
 	viper.SetConfigName("database")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
+	viper.AddConfigPath("./database")
+	viper.AddConfigPath("./key-distribution-center")
 
 	err := viper.ReadInConfig()
 	if err!=nil {
@@ -49,20 +54,25 @@ func LoadDatabase() (Database, error) {
 
 func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
 	defer wg.Done()
+
+	if port == "" {
+		log.Fatal("No valid KDC_Port in database [kdc_port: ':187']")
+		os.Exit(1)
+	}
 	
 	addr, err := net.ResolveUDPAddr("udp", port)
 	if err!=nil {
-		errchan<-err
-		return
+		log.Fatal(err)
+		os.Exit(1)
 	}
 
 	conn, err := net.ListenUDP("udp", addr)
 	if err!=nil {
-		errchan<-err
-		return
+		log.Fatal(err)
+		os.Exit(1)
 	}
 	defer conn.Close()
-	fmt.Printf("Startet TGS %v\n", addr.Port)
+	fmt.Printf("Key-Distribution-Center launched on Port %s\n", port)
 
 	buffer := make([]byte, 1024)
 
@@ -72,10 +82,10 @@ func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
 			errchan<-err
 			continue
 		}
-		req := &proto.KDCMessage{}
+		req := &message.KDCMessage{}
 		if err := proto.Unmarshal(buffer[:n], req); err != nil {
 			if _,err = conn.WriteToUDP([]byte(
-				fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err)
+				fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
 			), addr); err != nil {
 				errchan<-err
 			}
@@ -83,10 +93,10 @@ func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
 		}
 		
 		fmt.Printf("Read this shit %s\n", buffer[:n])
-		switch msg := req.Msg.(type) {
-		case *proto.KDCMessage_tgtreq:
+		switch req.Msg.(type) {
+		case *message.KDCMessage_TGTReq:
 			fmt.Println("Got a TGT Request")
-		case *proto.KDCMessage_tgsreq:
+		case *message.KDCMessage_TGSReq:
 			fmt.Println("Got a TGS Request")
 		default:
 			fmt.Println("Unknown type")
@@ -117,7 +127,6 @@ func main() {
 		for err := range errch {
 			if err!=nil {
 				fmt.Fprintf(os.Stderr, "[Err]:\n%s\n")
-				os.Exit(1)
 			}
 		}
 	}()

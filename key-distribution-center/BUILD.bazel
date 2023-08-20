@@ -1,9 +1,26 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+filegroup(
+    name = "database-file",
+    srcs = ["database.yaml"],
+    visibility = ["//visibility:public"],
+)
 
 go_library(
-    name = "kdc",
+    name = "key-distribution-center_lib",
     srcs = ["main.go"],
-    importpath = "",
+    importpath = "github.com/megakuul/kerberos-sim/key-distribution-center",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//message",
+        "@com_github_spf13_viper//:viper",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_binary(
+    name = "key-distribution-center",
+    embed = [":key-distribution-center_lib"],
+    data = [":database-file"],
     visibility = ["//visibility:public"],
-    deps = ["@com_github_spf13_viper//:viper"],
 )

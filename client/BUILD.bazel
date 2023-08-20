@@ -9,6 +9,13 @@ go_library(
 
 go_binary(
     name = "client",
-    embed = [":lib"],
+    embed = [":client_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "client_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/megakuul/kerberos-sim/client",
+    visibility = ["//visibility:private"],
 )

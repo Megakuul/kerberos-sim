@@ -1,6 +1,6 @@
-syntax = "proto3"
+syntax = "proto3";
 
-package proto;
+package message;
 
 message TGTRequest {
 	string userid = 1;
@@ -20,9 +20,9 @@ message TGSResponse {
 
 message KDCMessage {
 	oneof msg {
-		TGTRequest tgtreq = 1;
-		TGTResponse tgtres = 2;
-		TGSRequest tgsreq = 3;
-		TGSResponse tgsres = 4;
+		TGTRequest TGTReq = 1;
+		TGTResponse TGTRes = 2;
+		TGSRequest TGSReq = 3;
+		TGSResponse TGSRes = 4;
 	}
 }
