@@ -3,19 +3,19 @@ syntax = "proto3";
 package message;
 
 message TGTRequest {
-	string userid = 1;
+	string UPN = 1;
 }
 
 message TGTResponse {
-	string tgskey = 1;
+	string TGSKey = 1;
 }
 
 message TGSRequest {
-	string tgskey = 1;
+	string TGSKey = 1;
 }
 
 message TGSResponse {
-	string svckey = 1;
+	string SVCKey = 1;
 }
 
 message KDCMessage {

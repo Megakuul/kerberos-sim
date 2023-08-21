@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package = "message";
+
+message SPNRequest {
+	string SVC_Addr = 1;
+}
+
+message SPNResponse {
+	string SPN = 1;
+}

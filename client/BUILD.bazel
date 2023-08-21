@@ -18,4 +18,5 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/megakuul/kerberos-sim/client",
     visibility = ["//visibility:private"],
+    deps = ["@org_golang_x_crypto//ssh/terminal"],
 )

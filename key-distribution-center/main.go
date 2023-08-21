@@ -15,12 +15,16 @@ import (
 type Database struct {
 	KDC_Port string `mapstructure:"kdc_port"`
 	Kerberos_Token string `mapstructure:"kerberos_token"`
+	Realms []Realm `mapstructure:"realms"`
+}
+
+type Realm struct {
+	Name string `mapstructure:"name"`
 	User_Principals []UserPrincipal `mapstructure:"user_principals"`
 	Service_Principals []ServicePrincipal `mapstructure:"service_principals"`
 }
 
 type UserPrincipal struct {
-	Userid int `mapstructure:"userid"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 }

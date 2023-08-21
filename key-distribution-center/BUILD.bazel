@@ -20,7 +20,7 @@ go_library(
 
 go_binary(
     name = "key-distribution-center",
-    embed = [":key-distribution-center_lib"],
     data = [":database-file"],
+    embed = [":key-distribution-center_lib"],
     visibility = ["//visibility:public"],
 )
