@@ -19,7 +19,7 @@ message TGSResponse {
 }
 
 message KDCMessage {
-	oneof msg {
+	oneof M {
 		TGTRequest TGTReq = 1;
 		TGTResponse TGTRes = 2;
 		TGSRequest TGSReq = 3;
@@ -33,5 +33,12 @@ message SPNRequest {
 
 message SPNResponse {
 	string SPN = 1;
+}
+
+message SVCMessage {
+	oneof M {
+		SPNRequest SPNReq = 1;
+		SPNResponse SPNRes = 2;
+	}	
 }
 

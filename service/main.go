@@ -39,7 +39,7 @@ func LoadDatabase() (Database, error) {
 	return database, nil
 }
 
-func StartSPNHandler(db Database, wg *sync.WaitGroup, errchan chan<-error) {
+func StartSVCListener(db Database, wg *sync.WaitGroup, errchan chan<-error) {
 	defer wg.Done()
 
 	if db.SVC_Port == "" {
@@ -78,7 +78,7 @@ func StartSPNHandler(db Database, wg *sync.WaitGroup, errchan chan<-error) {
 			continue
 		}
 		
-		Req :=&message.SPNRequest{}
+		Req := &message.SVCMessage{}
 
 		if err := proto.Unmarshal(bReq[:n], Req); err!=nil {
 			if _,err = con.Write([]byte(
@@ -89,33 +89,41 @@ func StartSPNHandler(db Database, wg *sync.WaitGroup, errchan chan<-error) {
 			continue
 		}
 
-		// Req Proto contains the SVC Addr and is more a check if the user can send valid proto requests
+		fmt.Println("I read some shit")
 		
-		fmt.Printf("I read something\n")
+		switch m := Req.M.(type) {
+		case *message.SVCMessage_SPNReq:
+			HandleSPN(con, db, errchan)
+		default:
+			fmt.Println("Unimplemented type")
+			_ = m
+		}
+	}
+}
 
-		Res := &message.SPNResponse{
-			SPN: db.SPN,
-		}
-		
-		bRes, err := proto.Marshal(Res)
+func HandleSPN(con *net.TCPConn, db Database, errchan chan<-error) {
+	Res := &message.SPNResponse{
+		SPN: db.SPN,
+	}
+	
+	bRes, err := proto.Marshal(Res)
+	if err!=nil {
+		errchan<-err
+		_, err = con.Write([]byte(err.Error()))
 		if err!=nil {
 			errchan<-err
-			_, err = con.Write([]byte(err.Error()))
-			if err!=nil {
-				errchan<-err
-				continue
-			}
+			return
 		}
-		
-		_, err = con.Write(bRes)
+	}
+	
+	_, err = con.Write(bRes)
+	if err!=nil {
+		errchan<-err
+		_, err = con.Write([]byte(err.Error()))
 		if err!=nil {
 			errchan<-err
-			_, err = con.Write([]byte(err.Error()))
-			if err!=nil {
-				errchan<-err
-				continue
-			}	
-		}
+			return
+		}	
 	}
 }
 
@@ -129,7 +137,7 @@ func main() {
 	errch := make(chan error)
 
 	wg.Add(1)
-	go StartSPNHandler(db, &wg, errch)
+	go StartSVCListener(db, &wg, errch)
 
 	go func() {
 		for err := range errch {

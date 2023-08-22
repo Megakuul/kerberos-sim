@@ -24,8 +24,12 @@ func FetchSPN(svc_addr string) (string, error) {
 	}
 	defer con.Close()
 
-	Req := &message.SPNRequest{
-		SVC_Addr: svc_addr,
+	Req := &message.SVCMessage{
+		M: &message.SVCMessage_SPNReq{
+			SPNReq: &message.SPNRequest{
+				SVC_Addr: svc_addr,
+			},
+		},
 	}
 
 	bReq, err := proto.Marshal(Req)
@@ -48,11 +52,12 @@ func FetchSPN(svc_addr string) (string, error) {
 		// Return the error if the svc returned a error instead of the Protobuf
 		return string(bRes), err
 	}
+	
 	return Res.SPN, nil
 }
 
 func main() {
-	if len(os.Args) != 2 {
+	if len(os.Args) != 3 {
 		fmt.Println("usage: client [svc] [kdc]")
 		os.Exit(1)
 	}
@@ -79,8 +84,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	password = string(bpassword)	
-
+	fmt.Println()
+	password = string(bpassword)
 
 	fmt.Println(svc_principal_name)
 }
