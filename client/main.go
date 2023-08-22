@@ -24,42 +24,43 @@ func FetchSPN(svc_addr string) (string, error) {
 	}
 	defer con.Close()
 
-	req := &message.SPNRequest{
+	Req := &message.SPNRequest{
 		SVC_Addr: svc_addr,
 	}
 
-	breq, err := proto.Marshal(req)
+	bReq, err := proto.Marshal(Req)
 	if err!=nil {
 		return "", err
 	}
-	_, err = con.Write(breq)
-	if err!=nil {
-		return "", err
-	}
-
-	bres := make([]byte, 1024)
-	n, err := con.Read(bres)
+	_, err = con.Write(bReq)
 	if err!=nil {
 		return "", err
 	}
 
-	res:= &message.SPNResponse{}
-	if err := proto.Unmarshal(bres[:n], res); err!=nil {
+	bRes := make([]byte, 1024)
+	n, err := con.Read(bRes)
+	if err!=nil {
 		return "", err
 	}
-	return res.SPN, nil
+
+	Res:= &message.SPNResponse{}
+	if err := proto.Unmarshal(bRes[:n], Res); err!=nil {
+		// Return the error if the svc returned a error instead of the Protobuf
+		return string(bRes), err
+	}
+	return Res.SPN, nil
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Printf("usage: %s [svc] [kdc]\n", os.Args[0])
+		fmt.Println("usage: client [svc] [kdc]")
 		os.Exit(1)
 	}
 
 	svc_addr = os.Args[1]
 	kdc_addr = os.Args[2]
 
-	svc_principal_name, err = FetchSPN(svc_addr)
+	svc_principal_name, err := FetchSPN(svc_addr)
 	if err!=nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -79,5 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 	password = string(bpassword)	
-	
+
+
+	fmt.Println(svc_principal_name)
 }

@@ -30,8 +30,8 @@ type UserPrincipal struct {
 }
 
 type ServicePrincipal struct {
-	Name string `mapstructure:"name"`
-	Key string  `mapstructure:"key"`
+	SPN string `mapstructure:"spn"`
+	Shared_Secret string `mapstructure:"shared_secret"`
 }
 
 func LoadDatabase() (Database, error) {
@@ -117,7 +117,7 @@ func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
 func main() {
 	db, err := LoadDatabase()
 	if err!=nil {
-		fmt.Fprintf(os.Stderr, "[ERR]:\n%s\n", err)
+		log.Fatal(err)
 		os.Exit(1)
 	}
 
@@ -130,7 +130,7 @@ func main() {
 	go func() {
 		for err := range errch {
 			if err!=nil {
-				fmt.Fprintf(os.Stderr, "[Err]:\n%s\n")
+				log.Fatal(err)
 			}
 		}
 	}()

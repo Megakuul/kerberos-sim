@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+filegroup(
+    name = "database-file",
+    srcs = ["database.yaml"],
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "service_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/megakuul/kerberos-sim/service",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//message",
+        "@com_github_spf13_viper//:viper",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_binary(
+    name = "service",
+    data = [":database-file"],
+    embed = [":service_lib"],
+    visibility = ["//visibility:public"],
+)

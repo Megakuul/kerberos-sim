@@ -26,3 +26,12 @@ message KDCMessage {
 		TGSResponse TGSRes = 4;
 	}
 }
+
+message SPNRequest {
+	string SVC_Addr = 1;
+}
+
+message SPNResponse {
+	string SPN = 1;
+}
+
