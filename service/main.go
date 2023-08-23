@@ -19,18 +19,19 @@ type Database struct {
 
 func LoadDatabase() (Database, error) {
 	var database Database
-
+	
 	viper.SetConfigName("database")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./database")
 	viper.AddConfigPath("./service")
-
+	
 	err := viper.ReadInConfig()
 	if err!=nil {
 		return database, err
 	}
 
+	
 	err = viper.Unmarshal(&database);
 	if err!=nil {
 		return database, err
@@ -94,11 +95,23 @@ func StartSVCListener(db Database, wg *sync.WaitGroup, errchan chan<-error) {
 		switch m := Req.M.(type) {
 		case *message.SVCMessage_SPNReq:
 			HandleSPN(con, db, errchan)
+		case *message.SVCMessage_SVCReq:
+			HandleSVCReq(con, db, m, errchan)
+		case *message.SVCMessage_UPNReq:
+			HandleProfileReq(con, db, m, errchan)
 		default:
 			fmt.Println("Unimplemented type")
-			_ = m
 		}
 	}
+}
+
+func HandleProfileReq(con *net.TCPConn, db Database, msg *message.SVCMessage_SPNReq, errchan chan<-error) {
+
+	
+}
+
+func HandleSVCReq(con *net.TCPConn, db Database, msg *message.SVCMessage_SVCReq, errchan chan<-error) {
+	
 }
 
 func HandleSPN(con *net.TCPConn, db Database, errchan chan<-error) {

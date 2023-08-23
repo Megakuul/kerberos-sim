@@ -2,43 +2,65 @@ syntax = "proto3";
 
 package message;
 
-message TGTRequest {
-	string UPN = 1;
+
+message KRB_TGT_Request {
+  string UPN = 1;
+  uint64 Timestamp = 2;
 }
 
-message TGTResponse {
-	string TGSKey = 1;
+message KRB_TGT_Response {
+  string TGSKey = 1;
 }
 
-message TGSRequest {
-	string TGSKey = 1;
+message KRB_TGS_Request {
+  string TGSKey = 1;
 }
 
-message TGSResponse {
-	string SVCKey = 1;
+message KRB_TGS_Response {
+  string SVCKey = 1;
 }
 
 message KDCMessage {
-	oneof M {
-		TGTRequest TGTReq = 1;
-		TGTResponse TGTRes = 2;
-		TGSRequest TGSReq = 3;
-		TGSResponse TGSRes = 4;
-	}
+  oneof M {
+    KRB_TGT_Request TGTReq = 1;
+    KRB_TGT_Response TGTRes = 2;
+    KRB_TGS_Request TGSReq = 3;
+    KRB_TGS_Response TGSRes = 4;
+  }
 }
 
-message SPNRequest {
-	string SVC_Addr = 1;
+message SPN_Request {
+  string SVC_Addr = 1;
 }
 
-message SPNResponse {
-	string SPN = 1;
+message SPN_Response {
+  string SPN = 1;
+}
+
+message KRB_SVC_Request {
+
+}
+
+message KRB_SVC_Response {
+
+}
+
+message UPN_Request {
+  bytes TGS = 1;
+}
+
+message UPN_Response {
+  string UPN = 1;
 }
 
 message SVCMessage {
-	oneof M {
-		SPNRequest SPNReq = 1;
-		SPNResponse SPNRes = 2;
-	}	
+  oneof M {
+    SPN_Request SPNReq = 1;
+    SPN_Response SPNRes = 2;
+    KRB_SVC_Request SVCReq  = 3;
+    KRB_SVC_Response SVCRes = 4;
+    UPN_Request UPNReq = 5;
+    UPN_Response UPNRes = 6;
+  }	
 }
 
