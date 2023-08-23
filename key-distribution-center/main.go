@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/spf13/viper"
 	"fmt"
 	"os"
 	"net"
 	"sync"
 	"log"
+	"errors"
+	"github.com/spf13/viper"
 	"github.com/megakuul/kerberos-sim/message"
 	"google.golang.org/protobuf/proto"
 )
@@ -56,62 +57,83 @@ func LoadDatabase() (Database, error) {
 	return database, nil
 }
 
-func StartKDC(port string, wg *sync.WaitGroup, errchan chan<-error) {
+func StartKDCListener(db *Database, wg *sync.WaitGroup, errchan chan<-error, exit *exit) {
 	defer wg.Done()
-
-	if port == "" {
-		log.Fatal("No valid KDC_Port in database [kdc_port: ':187']")
-		os.Exit(1)
+	
+	if db.KDC_Port == "" {
+		exit.code = 1
+		exit.err = errors.New("No valid KDC_Port in database [kdc_port: ':187']")
+		return
 	}
 	
-	addr, err := net.ResolveUDPAddr("udp", port)
+	addr, err := net.ResolveUDPAddr("udp", db.KDC_Port)
 	if err!=nil {
-		log.Fatal(err)
-		os.Exit(1)
+		exit.code = 1
+		exit.err = err
+		return
 	}
 
-	conn, err := net.ListenUDP("udp", addr)
+	listener, err := net.ListenUDP("udp", addr)
 	if err!=nil {
-		log.Fatal(err)
-		os.Exit(1)
+		exit.code = 1
+		exit.err = err
+		return
 	}
-	defer conn.Close()
-	fmt.Printf("Key-Distribution-Center launched on Port %s\n", port)
+	defer listener.Close()
+	fmt.Printf("Key-Distribution-Center launched on Port %s\n", db.KDC_Port)
 
 	buffer := make([]byte, 1024)
-
 	for {
-		n, addr, err := conn.ReadFromUDP(buffer)
+		n, addr, err := listener.ReadFromUDP(buffer)
 		if err!=nil {
 			errchan<-err
 			continue
 		}
-		req := &message.KDCMessage{}
-		if err := proto.Unmarshal(buffer[:n], req); err != nil {
-			if _,err = conn.WriteToUDP([]byte(
-				fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
-			), addr); err != nil {
-				errchan<-err
+
+		go func(data []byte, n int, origAddr *net.UDPAddr) {
+			addr := *origAddr
+			Req := &message.KDCMessage{}
+			if err := proto.Unmarshal(data[:n], Req); err != nil {
+				if _,err = listener.WriteToUDP([]byte(
+					fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
+				), &addr); err != nil {
+					errchan<-err
+				}
+				return
 			}
-			continue
-		}
-		
-		fmt.Printf("Read this shit %s\n", buffer[:n])
-		switch req.Msg.(type) {
-		case *message.KDCMessage_TGTReq:
-			fmt.Println("Got a TGT Request")
-		case *message.KDCMessage_TGSReq:
-			fmt.Println("Got a TGS Request")
-		default:
-			fmt.Println("Unknown type")
-		}
-		
-		_,err = conn.WriteToUDP([]byte("I do something"), addr)
-		if err!=nil {
-			errchan<-err
-			continue
-		}	
+			
+			fmt.Printf("Read this shit %s\n", data[:n])
+			switch m:=Req.M.(type) {
+			case *message.KDCMessage_ASReq:
+				HandleASReq(listener, &addr, db, m, errchan)
+			case *message.KDCMessage_TGSReq:
+				HandleTGSReq(listener, &addr, db, m, errchan)
+			default:
+				errchan<-errors.New("Unimplemented type")
+			}
+		}(buffer, n, addr)
 	}
+}
+
+func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KDCMessage_ASReq, errchan chan<-error) {
+	_,err := listener.WriteToUDP([]byte("Handle AS"), addr)
+	if err!=nil {
+		errchan<-err
+		return
+	}
+}
+
+func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KDCMessage_TGSReq, errchan chan<-error) {
+	_,err := listener.WriteToUDP([]byte("Handle TGS"), addr)
+	if err!=nil {
+		errchan<-err
+		return
+	}
+}
+
+type exit struct {
+	err error
+	code int	
 }
 
 func main() {
@@ -121,12 +143,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	exit := &exit{nil,0}
+	
 	var wg sync.WaitGroup
 	errch := make(chan error)
 
 	wg.Add(1)
-	go StartKDC(db.KDC_Port, &wg, errch)
-	
+	go StartKDCListener(&db, &wg, errch, exit)
+
+	// Handle Warnings at runtime
 	go func() {
 		for err := range errch {
 			if err!=nil {
@@ -136,4 +161,9 @@ func main() {
 	}()
 
 	wg.Wait()
+
+	if exit.err!=nil {
+		log.Fatal(exit.err)
+	}
+	os.Exit(exit.code)
 }

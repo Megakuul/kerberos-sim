@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"os"
+	"errors"
 	"github.com/megakuul/kerberos-sim/message"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/proto"
@@ -40,26 +41,30 @@ func LoadDatabase() (Database, error) {
 	return database, nil
 }
 
-func StartSVCListener(db Database, wg *sync.WaitGroup, errchan chan<-error) {
+func StartSVCListener(db *Database, wg *sync.WaitGroup, errchan chan<-error, exit *exit) {
 	defer wg.Done()
 
 	if db.SVC_Port == "" {
-		log.Fatal("No valid SVC_Port in database [svc_port: ':187'")
-		os.Exit(1)
+		exit.code = 1
+		exit.err = errors.New("No valid SVC_Port in database [svc_port]: ':187'")
+		return
 	}
 
 	addr, err := net.ResolveTCPAddr("tcp", db.SVC_Port)
 	if err!=nil {
-		log.Fatal(err)
-		os.Exit(1)
+		exit.code = 1
+		exit.err = err
+		return
 	}
 
 	listener, err := net.ListenTCP("tcp", addr)
 	if err!= nil {
-		log.Fatal(err)
-		os.Exit(1)
+		exit.code = 1
+		exit.err = err
+		return
 	}
 	defer listener.Close()
+	
 	fmt.Printf("Service %s launched on Port %s\n", db.SPN, db.SVC_Port)
 
 	bReq := make([]byte, 1024)
@@ -71,51 +76,54 @@ func StartSVCListener(db Database, wg *sync.WaitGroup, errchan chan<-error) {
 			con.Close()
 			continue
 		}
-		defer con.Close()
 
-		n, err := con.Read(bReq)
-		if err!=nil {
-			errchan<-err
-			continue
-		}
-		
-		Req := &message.SVCMessage{}
-
-		if err := proto.Unmarshal(bReq[:n], Req); err!=nil {
-			if _,err = con.Write([]byte(
-				fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
-			)); err!=nil {
+		go func (origCon *net.TCPConn) {
+			con := *origCon
+			defer con.Close()
+			n, err := con.Read(bReq)
+			if err!=nil {
 				errchan<-err
+				return
 			}
-			continue
-		}
+			
+			Req := &message.SVCMessage{}
 
-		fmt.Println("I read some shit")
-		
-		switch m := Req.M.(type) {
-		case *message.SVCMessage_SPNReq:
-			HandleSPN(con, db, errchan)
-		case *message.SVCMessage_SVCReq:
-			HandleSVCReq(con, db, m, errchan)
-		case *message.SVCMessage_UPNReq:
-			HandleProfileReq(con, db, m, errchan)
-		default:
-			fmt.Println("Unimplemented type")
-		}
+			if err := proto.Unmarshal(bReq[:n], Req); err!=nil {
+				if _,err = con.Write([]byte(
+					fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
+				)); err!=nil {
+					errchan<-err
+				}
+				return
+			}
+
+			fmt.Println("I read some shit")
+			
+			switch m := Req.M.(type) {
+			case *message.SVCMessage_SPNReq:
+				HandleSPNReq(&con, db, errchan)
+			case *message.SVCMessage_APReq:
+				HandleAPReq(&con, db, m, errchan)
+			case *message.SVCMessage_CMDReq:
+				HandleCMDReq(&con, db, m, errchan)
+			default:
+				errchan<-errors.New("Unimplemented type")
+			}
+		}(con)
 	}
 }
 
-func HandleProfileReq(con *net.TCPConn, db Database, msg *message.SVCMessage_SPNReq, errchan chan<-error) {
+func HandleCMDReq(con *net.TCPConn, db *Database, msg *message.SVCMessage_CMDReq, errchan chan<-error) {
 
 	
 }
 
-func HandleSVCReq(con *net.TCPConn, db Database, msg *message.SVCMessage_SVCReq, errchan chan<-error) {
+func HandleAPReq(con *net.TCPConn, db *Database, msg *message.SVCMessage_APReq, errchan chan<-error) {
 	
 }
 
-func HandleSPN(con *net.TCPConn, db Database, errchan chan<-error) {
-	Res := &message.SPNResponse{
+func HandleSPNReq(con *net.TCPConn, db *Database, errchan chan<-error) {
+	Res := &message.SPN_Response{
 		SPN: db.SPN,
 	}
 	
@@ -140,17 +148,24 @@ func HandleSPN(con *net.TCPConn, db Database, errchan chan<-error) {
 	}
 }
 
+type exit struct {
+	err error
+	code int	
+}
+
 func main() {
 	db, err := LoadDatabase()
 	if err!=nil {
 		log.Fatal(err)
 	}
 
+	exit := &exit{nil,0}
+	
 	var wg sync.WaitGroup
 	errch := make(chan error)
 
 	wg.Add(1)
-	go StartSVCListener(db, &wg, errch)
+	go StartSVCListener(&db, &wg, errch, exit)
 
 	go func() {
 		for err := range errch {
@@ -161,6 +176,11 @@ func main() {
 	}()
 
 	wg.Wait()
+
+	if exit.err!=nil{
+		log.Fatal(exit.err)
+	}
+	os.Exit(exit.code)
 }
 
 

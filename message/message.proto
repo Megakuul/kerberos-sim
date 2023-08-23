@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package message;
 
-
-message KRB_TGT_Request {
+message KRB_AS_Request {
   string UPN = 1;
-  uint64 Timestamp = 2;
+  repeated string IP_List = 2;
 }
 
-message KRB_TGT_Response {
-  string TGSKey = 1;
+message KRB_AS_Response {
+  bytes TGT = 1;
+  
 }
 
 message KRB_TGS_Request {
@@ -22,8 +22,8 @@ message KRB_TGS_Response {
 
 message KDCMessage {
   oneof M {
-    KRB_TGT_Request TGTReq = 1;
-    KRB_TGT_Response TGTRes = 2;
+    KRB_AS_Request ASReq = 1;
+    KRB_AS_Response ASRes = 2;
     KRB_TGS_Request TGSReq = 3;
     KRB_TGS_Response TGSRes = 4;
   }
@@ -37,30 +37,31 @@ message SPN_Response {
   string SPN = 1;
 }
 
-message KRB_SVC_Request {
+message KRB_AP_Request {
 
 }
 
-message KRB_SVC_Response {
+message KRB_AP_Response {
 
 }
 
-message UPN_Request {
+message CMD_Request {
   bytes TGS = 1;
+  string CMD = 2;
 }
 
-message UPN_Response {
-  string UPN = 1;
+message CMD_Response {
+  string Output = 1;
 }
 
 message SVCMessage {
   oneof M {
     SPN_Request SPNReq = 1;
     SPN_Response SPNRes = 2;
-    KRB_SVC_Request SVCReq  = 3;
-    KRB_SVC_Response SVCRes = 4;
-    UPN_Request UPNReq = 5;
-    UPN_Response UPNRes = 6;
+    KRB_AP_Request APReq  = 3;
+    KRB_AP_Response APRes = 4;
+    CMD_Request CMDReq = 5;
+    CMD_Response CMDRes = 6;
   }	
 }
 
