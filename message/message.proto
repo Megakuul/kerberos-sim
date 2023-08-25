@@ -3,21 +3,27 @@ syntax = "proto3";
 package message;
 
 message KRB_AS_Request {
-  string UPN = 1;
-  repeated string IP_List = 2;
+  string UserPrincipal = 1;
+  string TGSPrincipal = 2;
+  uint64 Lifetime = 3;
+  repeated string IP_List = 4;
 }
 
 message KRB_AS_Response {
   bytes TGT = 1;
-  
+  bytes CT = 2;
 }
 
 message KRB_TGS_Request {
-  string TGSKey = 1;
+  string SVCPrincipal = 1;
+  uint64 Lifetime = 2;
+  bytes Authenticator = 3;
+  bytes TGT = 4;
 }
 
 message KRB_TGS_Response {
-  string SVCKey = 1;
+  bytes ST = 1;
+  bytes CT = 2;
 }
 
 message KDCMessage {
@@ -38,11 +44,12 @@ message SPN_Response {
 }
 
 message KRB_AP_Request {
-
+  bytes Authenticator = 1;
+  bytes ST = 2;
 }
 
 message KRB_AP_Response {
-
+  bytes VERIFY
 }
 
 message CMD_Request {
