@@ -1,7 +1,9 @@
 kdc_port: ":5232"
 kerberos_token: "EMILERPEL95126"
+key_bytes: 32
 realms:
   - name: "ENTENHAUSEN.COM"
+    max_lifetime: 604800
     user_principals:
       - username: "gundel.gaukeley"
         password: "zehner"

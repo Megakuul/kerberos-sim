@@ -7,7 +7,7 @@ import (
 	"sync"
 	"os"
 	"errors"
-	"github.com/megakuul/kerberos-sim/message"
+	"github.com/megakuul/kerberos-sim/shared/message"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/proto"
 )

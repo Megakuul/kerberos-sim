@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net"
 	"os"
-
-	"github.com/megakuul/kerberos-sim/message"
+	"strings"
+	"errors"
+	"github.com/megakuul/kerberos-sim/shared/message"
+	"github.com/megakuul/kerberos-sim/shared/crypto"
 	"google.golang.org/protobuf/proto"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -56,16 +58,17 @@ func FetchSPN(svc_addr string) (string, error) {
 	return Res.SPN, nil
 }
 
-// TODO: Return a TGT and a session key instead of a string
-func RequestTGT(kdc_addr string, upn string) (string, error) {
+func RequestTGT(kdc_addr string, upn string, passwd string) (crypto.AS_CT, []byte, error) {
+	as_ct := crypto.AS_CT{}
+
 	addr, err := net.ResolveUDPAddr("udp", kdc_addr)
 	if err!=nil {
-		return "", nil
+		return as_ct, nil, err
 	}
-
+	
 	con, err := net.DialUDP("udp", nil, addr)
 	if err!=nil {
-		return "", nil
+		return as_ct, nil, err
 	}
 	defer con.Close()
 
@@ -79,28 +82,30 @@ func RequestTGT(kdc_addr string, upn string) (string, error) {
 
 	bReq, err := proto.Marshal(Req)
 	if err!=nil {
-		return "", nil
+		return as_ct, nil, err
 	}
 	_, err = con.Write(bReq)
 	if err!=nil {
-		return "", nil
+		return as_ct, nil, err
 	}
 
 	bRes := make([]byte, 1024)
 	n, _, err := con.ReadFromUDP(bRes)
 	if err!=nil {
-		return "", nil
+		return as_ct, nil, err
 	}
-
-	// TODO: Implement server Logic and remove this return
-	return string(bRes), nil
 	
 	Res:= &message.KRB_AS_Response{}
 	if err:=proto.Unmarshal(bRes[:n], Res); err!=nil {
-		return string(bRes), err
+		return as_ct, nil, errors.New(string(bRes))
 	}
 
-	return string(Res.TGT), nil
+	as_ct, err = crypto.DecryptAS_CT(Res.CT, []byte(passwd))
+	if err!=nil {
+		return as_ct, nil, err
+	}
+
+	return as_ct, Res.TGT, nil
 }
 
 func RequestTGS() {
@@ -143,10 +148,11 @@ func main() {
 	password = string(bpassword)
 
 	fmt.Println(svc_principal_name)
-	res, err := RequestTGT(kdc_addr, user_principal_name)
+	ct, tgt, err := RequestTGT(kdc_addr, user_principal_name, password)
 	if err!=nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Println(res)
+	
+	fmt.Printf("Lifetime: %v\n", ct.Lifetime)
 }

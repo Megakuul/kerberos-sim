@@ -12,7 +12,8 @@ go_library(
     importpath = "github.com/megakuul/kerberos-sim/key-distribution-center",
     visibility = ["//visibility:private"],
     deps = [
-        "//message",
+        "//shared/crypto",
+        "//shared/message",
         "@com_github_spf13_viper//:viper",
         "@org_golang_google_protobuf//proto",
     ],

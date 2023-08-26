@@ -7,8 +7,12 @@ import (
 	"sync"
 	"log"
 	"errors"
+	"strings"
+	"time"
+	"math/rand"
 	"github.com/spf13/viper"
-	"github.com/megakuul/kerberos-sim/message"
+	"github.com/megakuul/kerberos-sim/shared/message"
+	"github.com/megakuul/kerberos-sim/shared/crypto"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -16,11 +20,13 @@ import (
 type Database struct {
 	KDC_Port string `mapstructure:"kdc_port"`
 	Kerberos_Token string `mapstructure:"kerberos_token"`
+	Key_Bytes uint `mapstructure:"key_bytes"`
 	Realms []Realm `mapstructure:"realms"`
 }
 
 type Realm struct {
 	Name string `mapstructure:"name"`
+	Max_Lifetime uint `mapstructure:"max_lifetime"`
 	User_Principals []UserPrincipal `mapstructure:"user_principals"`
 	Service_Principals []ServicePrincipal `mapstructure:"service_principals"`
 }
@@ -116,7 +122,118 @@ func StartKDCListener(db *Database, wg *sync.WaitGroup, errchan chan<-error, exi
 }
 
 func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KDCMessage_ASReq, errchan chan<-error) {
-	_,err := listener.WriteToUDP([]byte("Handle AS"), addr)
+	upn_slice:= strings.Split(msg.UserPrincipal, '@')
+	if len(upn_slice) >= 2 {
+		if _,err := listener.WriteToUDP(
+			[]byte("Invalid UPN, expected [user@realm]"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	var realm *Realm
+	for _, rlm := range db.Realms {
+		if rlm.Name == upn_slice[1] {
+			realm = &rlm
+			break
+		}
+	}
+	if realm==nil {
+		if _,err := listener.WriteToUDP(
+			[]byte("Realm not found on KDC database"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	var password string
+	for _, up := range realm.User_Principals {
+		if up.Username == upn_slice[0] {
+			password = up.Password
+			break
+		}
+	}
+	if password=="" {
+		if _,err := listener.WriteToUDP(
+			[]byte("No such user found"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	
+	lifetime:=msg.Lifetime
+	if msg.Lifetime>realm.Max_Lifetime {
+		lifetime = realm.Max_Lifetime
+	}
+	timestamp:=uint(time.Now().Unix())
+
+	sk := make([]byte, db.Key_Bytes)
+	if _,err := rand.Read(sk); err!=nil {
+		errchan<-err
+		if _,err := listener.WriteToUDP(
+			[]byte("Failed to generate sessionkey"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+
+	tgt:= &crypto.TGT{
+		sk,
+		msg.UserPrincipal,
+		msg.IP_List,
+		lifetime,
+		timestamp,
+	}
+	as_ct := &crypto.AS_CT{
+		sk,
+		lifetime,
+		timestamp,
+	}
+	encrypted_tgt, err := crypto.EncryptTGT(tgt, []byte(db.Kerberos_Token))
+	if err!=nil {
+		errchan<-err
+		if _,err := listener.WriteToUDP(
+			[]byte("Failed to encrypt TGT token"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	encrypted_as_ct, err := crypto.EncryptAS_CT(as_ct, []byte(password))
+	if err!=nil {
+		errchan<-err
+		if _,err := listener.WriteToUDP(
+			[]byte("Failed to encrypt AS_CT token"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	Res:=&message.KRB_AS_Response{
+		encrypted_tgt,
+		encrypted_as_ct,
+	}
+	bRes, err := proto.Marshal(Res)
+	if err!=nil {
+		errchan<-err
+		if _,err := listener.WriteToUDP(
+			[]byte("Failed to build protobuf response"),
+			addr,
+		); err != nil {
+			errchan<-err
+		}
+		return
+	}
+	
+	_,err := listener.WriteToUDP(bRes, addr)
 	if err!=nil {
 		errchan<-err
 		return

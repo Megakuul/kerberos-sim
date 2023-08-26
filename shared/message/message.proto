@@ -4,7 +4,6 @@ package message;
 
 message KRB_AS_Request {
   string UserPrincipal = 1;
-  string TGSPrincipal = 2;
   uint64 Lifetime = 3;
   repeated string IP_List = 4;
 }
@@ -49,7 +48,7 @@ message KRB_AP_Request {
 }
 
 message KRB_AP_Response {
-  bytes VERIFY
+  bytes VERIFY = 1;
 }
 
 message CMD_Request {

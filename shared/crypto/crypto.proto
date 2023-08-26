@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package crypto;
+
+message TGT {
+  bytes SK_TGS = 1;
+  string UserPrincipal = 2;
+  repeated string IP_List = 3;
+  uint64 Lifetime = 4;
+  uint64 Timestamp = 5;
+}
+
+message AS_CT {
+  bytes SK_TGS = 1;
+  uint64 Lifetime = 2;
+  uint64 Timestamp = 3;
+}
+
+message AUTH {
+  string UserPrincipal = 1;
+  uint64 Timestamp = 2;
+}
+
+message TGS_CT {
+  bytes SK_SVC = 1;
+  string SVCPrincipal = 2;
+  uint64 Lifetime = 3;
+  uint64 Timestamp = 4;
+}
+
+message ST {
+  string UserPrincipal = 1;
+  string SVCPrincipal = 2;
+  repeated string IP_List = 3;
+  uint64 Lifetime = 4;
+  uint64 Timestamp = 5;
+  bytes SK_SVC = 6;
+}
