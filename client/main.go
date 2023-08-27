@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"errors"
 	"github.com/megakuul/kerberos-sim/shared/message"
 	"github.com/megakuul/kerberos-sim/shared/crypto"
@@ -18,6 +17,7 @@ var user_principal_name string
 var svc_principal_name string
 var password string
 
+const LIFETIME = uint64(259200)
 
 func FetchSPN(svc_addr string) (string, error) {
 	con, err := net.Dial("tcp", svc_addr)
@@ -58,7 +58,7 @@ func FetchSPN(svc_addr string) (string, error) {
 	return Res.SPN, nil
 }
 
-func RequestTGT(kdc_addr string, upn string, passwd string) (crypto.AS_CT, []byte, error) {
+func RequestTGT(kdc_addr string, upn string, passwd string, lifetime uint64, ip_list []string) (crypto.AS_CT, []byte, error) {
 	as_ct := crypto.AS_CT{}
 
 	addr, err := net.ResolveUDPAddr("udp", kdc_addr)
@@ -75,7 +75,9 @@ func RequestTGT(kdc_addr string, upn string, passwd string) (crypto.AS_CT, []byt
 	Req := &message.KDCMessage{
 		M: &message.KDCMessage_ASReq{
 			ASReq: &message.KRB_AS_Request{
-				UPN: upn,
+				UserPrincipal: upn,
+				Lifetime: lifetime,
+				IP_List: ip_list,
 			},
 		},
 	}
@@ -147,12 +149,14 @@ func main() {
 	fmt.Println()
 	password = string(bpassword)
 
-	fmt.Println(svc_principal_name)
-	ct, tgt, err := RequestTGT(kdc_addr, user_principal_name, password)
+	ct, tgt, err := RequestTGT(kdc_addr, user_principal_name, password, LIFETIME, nil)
 	if err!=nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	_ = svc_principal_name
+	_ = tgt
 	
 	fmt.Printf("Lifetime: %v\n", ct.Lifetime)
 }

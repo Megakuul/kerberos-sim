@@ -20,13 +20,13 @@ import (
 type Database struct {
 	KDC_Port string `mapstructure:"kdc_port"`
 	Kerberos_Token string `mapstructure:"kerberos_token"`
-	Key_Bytes uint `mapstructure:"key_bytes"`
+	Key_Bytes uint64 `mapstructure:"key_bytes"`
 	Realms []Realm `mapstructure:"realms"`
 }
 
 type Realm struct {
 	Name string `mapstructure:"name"`
-	Max_Lifetime uint `mapstructure:"max_lifetime"`
+	Max_Lifetime uint64 `mapstructure:"max_lifetime"`
 	User_Principals []UserPrincipal `mapstructure:"user_principals"`
 	Service_Principals []ServicePrincipal `mapstructure:"service_principals"`
 }
@@ -108,12 +108,11 @@ func StartKDCListener(db *Database, wg *sync.WaitGroup, errchan chan<-error, exi
 				return
 			}
 			
-			fmt.Printf("Read this shit %s\n", data[:n])
 			switch m:=Req.M.(type) {
 			case *message.KDCMessage_ASReq:
-				HandleASReq(listener, &addr, db, m, errchan)
+				HandleASReq(listener, &addr, db, m.ASReq, errchan)
 			case *message.KDCMessage_TGSReq:
-				HandleTGSReq(listener, &addr, db, m, errchan)
+				HandleTGSReq(listener, &addr, db, m.TGSReq, errchan)
 			default:
 				errchan<-errors.New("Unimplemented type")
 			}
@@ -121,9 +120,9 @@ func StartKDCListener(db *Database, wg *sync.WaitGroup, errchan chan<-error, exi
 	}
 }
 
-func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KDCMessage_ASReq, errchan chan<-error) {
-	upn_slice:= strings.Split(msg.UserPrincipal, '@')
-	if len(upn_slice) >= 2 {
+func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KRB_AS_Request, errchan chan<-error) {
+	upn_slice:= strings.Split(msg.UserPrincipal, "@")
+	if len(upn_slice) < 2 {
 		if _,err := listener.WriteToUDP(
 			[]byte("Invalid UPN, expected [user@realm]"),
 			addr,
@@ -132,9 +131,11 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 		}
 		return
 	}
+	
+	// Really inefficient, in production this would use database querys to perform this
 	var realm *Realm
 	for _, rlm := range db.Realms {
-		if rlm.Name == upn_slice[1] {
+		if strings.ToLower(rlm.Name) == strings.ToLower(upn_slice[1]) {
 			realm = &rlm
 			break
 		}
@@ -148,6 +149,8 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 		}
 		return
 	}
+
+	// Really inefficient, in production this would use database querys to perform this
 	var password string
 	for _, up := range realm.User_Principals {
 		if up.Username == upn_slice[0] {
@@ -169,7 +172,7 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 	if msg.Lifetime>realm.Max_Lifetime {
 		lifetime = realm.Max_Lifetime
 	}
-	timestamp:=uint(time.Now().Unix())
+	timestamp:=uint64(time.Now().Unix())
 
 	sk := make([]byte, db.Key_Bytes)
 	if _,err := rand.Read(sk); err!=nil {
@@ -184,16 +187,16 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 	}
 
 	tgt:= &crypto.TGT{
-		sk,
-		msg.UserPrincipal,
-		msg.IP_List,
-		lifetime,
-		timestamp,
+		SK_TGS: sk,
+		UserPrincipal: msg.UserPrincipal,
+		IP_List: msg.IP_List,
+		Lifetime: lifetime,
+		Timestamp: timestamp,
 	}
 	as_ct := &crypto.AS_CT{
-		sk,
-		lifetime,
-		timestamp,
+		SK_TGS: sk,
+		Lifetime: lifetime,
+		Timestamp: timestamp,
 	}
 	encrypted_tgt, err := crypto.EncryptTGT(tgt, []byte(db.Kerberos_Token))
 	if err!=nil {
@@ -218,8 +221,8 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 		return
 	}
 	Res:=&message.KRB_AS_Response{
-		encrypted_tgt,
-		encrypted_as_ct,
+		TGT: encrypted_tgt,
+		CT: encrypted_as_ct,
 	}
 	bRes, err := proto.Marshal(Res)
 	if err!=nil {
@@ -233,14 +236,14 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *me
 		return
 	}
 	
-	_,err := listener.WriteToUDP(bRes, addr)
+	_,err = listener.WriteToUDP(bRes, addr)
 	if err!=nil {
 		errchan<-err
 		return
 	}
 }
 
-func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KDCMessage_TGSReq, errchan chan<-error) {
+func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *Database, msg *message.KRB_TGS_Request, errchan chan<-error) {
 	_,err := listener.WriteToUDP([]byte("Handle TGS"), addr)
 	if err!=nil {
 		errchan<-err

@@ -2,13 +2,15 @@ package crypto
 
 import (
 	"crypto/aes"
+	"crypto/sha256"
 	"crypto/cipher"
 	"crypto/rand"
 	"google.golang.org/protobuf/proto"
 )
 
 func EncryptTGT(tgt *TGT, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return nil, err
 	}
@@ -29,13 +31,14 @@ func EncryptTGT(tgt *TGT, key []byte) ([]byte, error) {
 	}
 
 	encrypted := gcm.Seal(nil, nonce, encoded, nil)
-	return encrypted, nil
+	return append(nonce, encrypted...), nil
 }
 
 func DecryptTGT(tgt []byte, key []byte) (TGT, error) {
 	tgt_buf := TGT{}
-	
-	block, err := aes.NewCipher(key)
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return tgt_buf, err
 	}
@@ -59,7 +62,8 @@ func DecryptTGT(tgt []byte, key []byte) (TGT, error) {
 }
 
 func EncryptAS_CT(as_ct *AS_CT, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return nil, err
 	}
@@ -79,17 +83,19 @@ func EncryptAS_CT(as_ct *AS_CT, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	encrypted := gcm.Seal(nil, nonce, encoded, nil)
-	return encrypted, nil
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
+	return append(nonce, encrypted...), nil
 }
 
 func DecryptAS_CT(as_ct []byte, key []byte) (AS_CT, error) {
 	as_ct_buf := AS_CT{}
-	
-	block, err := aes.NewCipher(key)
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return as_ct_buf, err
 	}
+	
 	gcm, err := cipher.NewGCM(block)
 	if err!=nil {
 		return as_ct_buf, err
@@ -97,8 +103,8 @@ func DecryptAS_CT(as_ct []byte, key []byte) (AS_CT, error) {
 
 	nSize := gcm.NonceSize()
 	nonce, ciphertxt := as_ct[:nSize], as_ct[nSize:]
-
-	decrypted, err := gcm.Open(nil, nonce, ciphertxt, nil)
+	
+	decrypted, err := gcm.Open(nil, nonce, ciphertxt, []byte{})
 	if err!=nil {
 		return as_ct_buf, err
 	}
@@ -110,7 +116,8 @@ func DecryptAS_CT(as_ct []byte, key []byte) (AS_CT, error) {
 }
 
 func EncryptAUTH(auth *AUTH, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return nil, err
 	}
@@ -131,13 +138,14 @@ func EncryptAUTH(auth *AUTH, key []byte) ([]byte, error) {
 	}
 
 	encrypted := gcm.Seal(nil, nonce, encoded, nil)
-	return encrypted, nil
+	return append(nonce, encrypted...), nil
 }
 
 func DecryptAUTH(auth []byte, key []byte) (AUTH, error) {
 	auth_buf := AUTH{}
-	
-	block, err := aes.NewCipher(key)
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return auth_buf, err
 	}
@@ -162,7 +170,8 @@ func DecryptAUTH(auth []byte, key []byte) (AUTH, error) {
 
 
 func EncryptTGS_CT(tgs_ct *TGS_CT, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return nil, err
 	}
@@ -183,13 +192,14 @@ func EncryptTGS_CT(tgs_ct *TGS_CT, key []byte) ([]byte, error) {
 	}
 
 	encrypted := gcm.Seal(nil, nonce, encoded, nil)
-	return encrypted, nil
+	return append(nonce, encrypted...), nil
 }
 
 func DecryptTGS_CT(tgs_ct []byte, key []byte) (TGS_CT, error) {
 	tgs_ct_buf := TGS_CT{}
-	
-	block, err := aes.NewCipher(key)
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return tgs_ct_buf, err
 	}
@@ -213,7 +223,8 @@ func DecryptTGS_CT(tgs_ct []byte, key []byte) (TGS_CT, error) {
 }
 
 func EncryptST(st *ST, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return nil, err
 	}
@@ -234,13 +245,14 @@ func EncryptST(st *ST, key []byte) ([]byte, error) {
 	}
 
 	encrypted := gcm.Seal(nil, nonce, encoded, nil)
-	return encrypted, nil
+	return append(nonce, encrypted...), nil
 }
 
 func DecryptST(st []byte, key []byte) (ST, error) {
 	st_buf := ST{}
-	
-	block, err := aes.NewCipher(key)
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
 	if err!=nil {
 		return st_buf, err
 	}
