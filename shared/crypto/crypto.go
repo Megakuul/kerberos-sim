@@ -30,7 +30,7 @@ func EncryptTGT(tgt *TGT, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	encrypted := gcm.Seal(nil, nonce, encoded, nil)
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
 	return append(nonce, encrypted...), nil
 }
 
@@ -42,6 +42,7 @@ func DecryptTGT(tgt []byte, key []byte) (TGT, error) {
 	if err!=nil {
 		return tgt_buf, err
 	}
+	
 	gcm, err := cipher.NewGCM(block)
 	if err!=nil {
 		return tgt_buf, err
@@ -50,7 +51,7 @@ func DecryptTGT(tgt []byte, key []byte) (TGT, error) {
 	nSize := gcm.NonceSize()
 	nonce, ciphertxt := tgt[:nSize], tgt[nSize:]
 
-	decrypted, err := gcm.Open(nil, nonce, ciphertxt, nil)
+	decrypted, err := gcm.Open(nil, nonce, ciphertxt, []byte{})
 	if err!=nil {
 		return tgt_buf, err
 	}
@@ -58,6 +59,7 @@ func DecryptTGT(tgt []byte, key []byte) (TGT, error) {
 	if err:=proto.Unmarshal(decrypted, &tgt_buf); err!=nil {
 		return tgt_buf, err
 	}
+	
 	return tgt_buf, nil
 }
 
@@ -137,7 +139,7 @@ func EncryptAUTH(auth *AUTH, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	encrypted := gcm.Seal(nil, nonce, encoded, nil)
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
 	return append(nonce, encrypted...), nil
 }
 
@@ -157,7 +159,7 @@ func DecryptAUTH(auth []byte, key []byte) (AUTH, error) {
 	nSize := gcm.NonceSize()
 	nonce, ciphertxt := auth[:nSize], auth[nSize:]
 
-	decrypted, err := gcm.Open(nil, nonce, ciphertxt, nil)
+	decrypted, err := gcm.Open(nil, nonce, ciphertxt, []byte{})
 	if err!=nil {
 		return auth_buf, err
 	}
@@ -191,7 +193,7 @@ func EncryptTGS_CT(tgs_ct *TGS_CT, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	encrypted := gcm.Seal(nil, nonce, encoded, nil)
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
 	return append(nonce, encrypted...), nil
 }
 
@@ -244,7 +246,7 @@ func EncryptST(st *ST, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	encrypted := gcm.Seal(nil, nonce, encoded, nil)
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
 	return append(nonce, encrypted...), nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"errors"
+	"time"
 	"github.com/megakuul/kerberos-sim/shared/message"
 	"github.com/megakuul/kerberos-sim/shared/crypto"
 	"google.golang.org/protobuf/proto"
@@ -110,8 +111,67 @@ func RequestTGT(kdc_addr string, upn string, passwd string, lifetime uint64, ip_
 	return as_ct, Res.TGT, nil
 }
 
-func RequestTGS() {
 
+func RequestTGS(spn string, upn string, sk []byte, tgt []byte) (crypto.TGS_CT, []byte, error) {
+	tgs_ct := crypto.TGS_CT{}
+
+	addr, err := net.ResolveUDPAddr("udp", kdc_addr)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+	
+	con, err := net.DialUDP("udp", nil, addr)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+	defer con.Close()
+
+	Auth := &crypto.AUTH{
+		UserPrincipal: upn,
+		Timestamp: uint64(time.Now().Unix()),
+	}
+	bAuth, err := crypto.EncryptAUTH(Auth, sk)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+
+	Req := &message.KDCMessage{
+		M: &message.KDCMessage_TGSReq{
+			TGSReq: &message.KRB_TGS_Request{
+				SVCPrincipal: spn,
+				Lifetime: LIFETIME,
+				Authenticator: bAuth,
+				TGT: tgt,
+			},
+		},
+	}
+
+	bReq, err := proto.Marshal(Req)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+	_, err = con.Write(bReq)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+
+	bRes := make([]byte, 1024)
+	n, _, err := con.ReadFromUDP(bRes)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+	
+	Res:= &message.KRB_TGS_Response{}
+	if err:=proto.Unmarshal(bRes[:n], Res); err!=nil {
+		return tgs_ct, nil, errors.New(string(bRes))
+	}
+
+	tgs_ct, err = crypto.DecryptTGS_CT(Res.CT, sk)
+	if err!=nil {
+		return tgs_ct, nil, err
+	}
+
+	return tgs_ct, Res.ST, nil
 }
 
 func RequestSVC() {
@@ -149,14 +209,23 @@ func main() {
 	fmt.Println()
 	password = string(bpassword)
 
-	ct, tgt, err := RequestTGT(kdc_addr, user_principal_name, password, LIFETIME, nil)
+	as_ct, tgt, err := RequestTGT(kdc_addr, user_principal_name, password, LIFETIME, nil)
 	if err!=nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	fmt.Println("Fetched TGT (stage 1 & 2)")
 
-	_ = svc_principal_name
-	_ = tgt
+	tgs_ct, st, err := RequestTGS(svc_principal_name, user_principal_name, as_ct.SK_TGS, tgt)
+	if err!=nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println("Fetched ST (stage 3 & 4)")
+
+	_ = st
 	
-	fmt.Printf("Lifetime: %v\n", ct.Lifetime)
+	fmt.Printf("Lifetime TGT: %v\n", as_ct.Lifetime)
+	fmt.Printf("Lifetime ST: %v\n", tgs_ct.Lifetime)
+	fmt.Printf("ServicePrincipal ST: %s\n", tgs_ct.SVCPrincipal)
 }
