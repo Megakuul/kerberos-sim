@@ -11,6 +11,10 @@ import (
 	"github.com/megakuul/kerberos-sim/key-distribution-center/handler"
 )
 
+const M_INVALIDPORT = "KDC_PORT FROM DATABASE IS INVALID! (EXPECTED kdc_port: ':187')"
+const M_INVALIDPROTO = "INVALID PROTOBUF REQUEST! (EXPECTED VALID PROTO3 BLOCK)"
+const M_UNEXPECTEDPROTO = "UNEXPECTED PROTOBUF REQUEST! (EXPECTED AS or TGS REQUEST)"
+
 type Exit struct {
 	Err error
 	Code int	
@@ -21,7 +25,7 @@ func StartKDCListener(db *dataloader.Database, wg *sync.WaitGroup, errchan chan<
 	
 	if db.KDC_Port == "" {
 		exit.Code = 1
-		exit.Err = errors.New("No valid KDC_Port in database [kdc_port: ':187']")
+		exit.Err = errors.New(M_INVALIDPORT)
 		return
 	}
 	
@@ -39,7 +43,7 @@ func StartKDCListener(db *dataloader.Database, wg *sync.WaitGroup, errchan chan<
 		return
 	}
 	defer listener.Close()
-	fmt.Printf("Key-Distribution-Center launched on Port %s\n", db.KDC_Port)
+	fmt.Printf("Key-Distribution-Center listening on %s\n", db.KDC_Port)
 
 	buffer := make([]byte, 1024)
 	for {
@@ -54,7 +58,7 @@ func StartKDCListener(db *dataloader.Database, wg *sync.WaitGroup, errchan chan<
 			Req := &message.KDCMessage{}
 			if err := proto.Unmarshal(data[:n], Req); err != nil {
 				if _,err = listener.WriteToUDP([]byte(
-					fmt.Sprintf("Invalid protobuf request [ERR]:\n%s\n", err),
+					M_INVALIDPROTO,
 				), &addr); err != nil {
 					errchan<-err
 				}
@@ -69,7 +73,7 @@ func StartKDCListener(db *dataloader.Database, wg *sync.WaitGroup, errchan chan<
 			default:
 				errchan<-err
 				if _,err := listener.WriteToUDP(
-					[]byte("Invalid Protobuf request"),
+					[]byte(M_UNEXPECTEDPROTO),
 					&addr,
 				); err != nil {
 					errchan<-err

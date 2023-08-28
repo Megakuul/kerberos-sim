@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "handler",
+    srcs = ["handler.go"],
+    importpath = "github.com/megakuul/kerberos-sim/client/handler",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//shared/crypto",
+        "//shared/message",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

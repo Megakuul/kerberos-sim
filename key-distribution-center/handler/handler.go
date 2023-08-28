@@ -11,6 +11,22 @@ import (
 	"github.com/megakuul/kerberos-sim/key-distribution-center/dataloader"
 )
 
+
+const M_INVALIDUPN = "INVALID USERPRINCIPAL FORMAT! (EXPECTED 'USER@REALM')"
+const M_FAILEDSK = "FAILED TO GENERATE SESSIONKEY! THIS MAY BE A TEMPORARY PROBLEM"
+const M_FAILEDENCRYPTTGT = "FAILED TO ENCRYPT TICKET GRANTING TICKET!"
+const M_FAILEDENCRYPTAS_CT = "FAILED TO ENCRYPT AUTH-SERVICE CLIENT TICKET!"
+const M_FAILEDENCRYPTST = "FAILED TO ENCRYPT SERVICE TICKET!"
+const M_FAILEDENCRYPTTGS_CT = "FAILED TO ENCRYPT TICKET GRANTING SERVICE CLIENT TICKET!"
+const M_FAILEDBUILDPROTO = "FAILED TO BUILD PROTO RESPONSE!"
+const M_UNEXPECTEDSPN = "UNEXPECTED SERVICEPRINCIPAL FORMAT! (EXPECTED 'SERVICE@REALM')"
+const M_FAILEDDECRYPTTGT = "FAILED TO DECRYPT TICKET GRANTING TICKET!"
+const M_FAILEDDECRYPTAUTH = "FAILED TO DECRYPT AUTHENTICATOR!"
+const M_TIMEOUTOFSYNC = "INVALID TIMESTAMP! (CHECK IF YOUR TIME IS IN SYNC)"
+const M_TGTCORRUPTED = "TICKET GRANTING TICKET IS CORRUPTED!"
+const M_TGTEXPIRED = "TICKET GRANTING TICKET HAS EXPIRED!"
+	
+
 // Max time shift of 5 minutes
 const MAX_TIME_SHIFT = uint64(300)
 
@@ -26,7 +42,7 @@ func handleErr(err string, listener *net.UDPConn, addr *net.UDPAddr, errchan cha
 func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Database, msg *message.KRB_AS_Request, errchan chan<-error) {
 	upn_slice:= strings.Split(msg.UserPrincipal, "@")
 	if len(upn_slice) < 2 {
-		handleErr("Invalid UPN, expected [user@realm]", listener, addr, errchan)
+		handleErr(M_INVALIDUPN, listener, addr, errchan)
 		return
 	}
 	
@@ -52,7 +68,7 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Databa
 	sk := make([]byte, db.Key_Bytes)
 	if _,err := rand.Read(sk); err!=nil {
 		errchan<-err
-		handleErr("Failed to generate sessionkey", listener, addr, errchan)
+		handleErr(M_FAILEDSK, listener, addr, errchan)
 		return
 	}
 
@@ -68,16 +84,17 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Databa
 		Lifetime: lifetime,
 		Timestamp: timestamp,
 	}
+
 	encrypted_tgt, err := crypto.EncryptTGT(tgt, []byte(db.Kerberos_Token))
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to encrypt TGT token", listener, addr, errchan)
+		handleErr(M_FAILEDENCRYPTTGT, listener, addr, errchan)
 		return
 	}
 	encrypted_as_ct, err := crypto.EncryptAS_CT(as_ct, []byte(password))
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to encrypt AS_CT token", listener, addr, errchan)
+		handleErr(M_FAILEDENCRYPTAS_CT, listener, addr, errchan)
 		return
 	}
 	Res:=&message.KRB_AS_Response{
@@ -87,7 +104,7 @@ func HandleASReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Databa
 	bRes, err := proto.Marshal(Res)
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to build protobuf response", listener, addr, errchan)
+		handleErr(M_FAILEDBUILDPROTO, listener, addr, errchan)
 		return
 	}
 	
@@ -102,7 +119,7 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 
 	spn_slice:= strings.Split(msg.SVCPrincipal, "@")
 	if len(spn_slice) < 2 {
-		handleErr("Invalid SPN, expected [service@realm]", listener, addr, errchan)
+		handleErr(M_UNEXPECTEDSPN, listener, addr, errchan)
 		return
 	}
 
@@ -111,18 +128,18 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 		handleErr(err.Error(), listener, addr, errchan)
 		return
 	}
-	
+
 	tgt, err := crypto.DecryptTGT(msg.TGT, []byte(db.Kerberos_Token))
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to decrypt TGT token", listener, addr, errchan)
+		handleErr(M_FAILEDDECRYPTTGT, listener, addr, errchan)
 		return
 	}
 
 	auth, err := crypto.DecryptAUTH(msg.Authenticator, tgt.SK_TGS)
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to decrypt AUTH token", listener, addr, errchan)
+		handleErr(M_FAILEDDECRYPTAUTH, listener, addr, errchan)
 		return
 	}
 
@@ -134,25 +151,25 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 
 	// Check if time is out of sync
 	if auth.Timestamp > timestamp+MAX_TIME_SHIFT || auth.Timestamp < timestamp-MAX_TIME_SHIFT {
-		handleErr("Invalid Timestamp, check if your time is in sync", listener, addr, errchan)
+		handleErr(M_TIMEOUTOFSYNC, listener, addr, errchan)
 		return
 	}
 
 	// Check if Authenticator matches to TGT
 	if auth.UserPrincipal!=tgt.UserPrincipal {
-		handleErr("Invalid UserPrincipal, TGT Ticket is corrupted!", listener, addr, errchan)
+		handleErr(M_TGTCORRUPTED, listener, addr, errchan)
 		return
 	}
 
 	// Check if TGT has expired
 	if tgt.Lifetime+tgt.Timestamp < timestamp {
-		handleErr("Ticket Granting Ticket has expired!", listener, addr, errchan)
+		handleErr(M_TGTEXPIRED, listener, addr, errchan)
 		return
 	}
 
 	upn_slice:= strings.Split(tgt.UserPrincipal, "@")
 	if len(upn_slice) < 2 {
-		handleErr("Invalid UserPrincipal format, TGT Ticket is corrupted!", listener, addr, errchan)
+		handleErr(M_TGTCORRUPTED, listener, addr, errchan)
 		return
 	}
 
@@ -181,7 +198,7 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 	sk := make([]byte, db.Key_Bytes)
 	if _,err := rand.Read(sk); err!=nil {
 		errchan<-err
-		handleErr("Failed to generate sessionkey", listener, addr, errchan)
+		handleErr(M_FAILEDSK, listener, addr, errchan)
 		return
 	}
 
@@ -202,15 +219,16 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 	encrypted_st, err := crypto.EncryptST(st, []byte(svc.Shared_Secret))
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to encrypt ST", listener, addr, errchan)
+		handleErr(M_FAILEDENCRYPTST, listener, addr, errchan)
 		return
 	}
 	encrypted_tgs_ct, err := crypto.EncryptTGS_CT(tgs_ct, tgt.SK_TGS)
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to encrypt TGS_CT", listener, addr, errchan)
+		handleErr(M_FAILEDENCRYPTTGS_CT, listener, addr, errchan)
 		return
 	}
+	
 	Res:=&message.KRB_TGS_Response{
 		ST: encrypted_st,
 		CT: encrypted_tgs_ct,
@@ -218,7 +236,7 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 	bRes, err := proto.Marshal(Res)
 	if err!=nil {
 		errchan<-err
-		handleErr("Failed to build protobuf response", listener, addr, errchan)
+		handleErr(M_FAILEDBUILDPROTO, listener, addr, errchan)
 		return
 	}
 	

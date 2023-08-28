@@ -7,6 +7,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+const M_REALMNOTFOUND = "REALM NOT FOUND!"
+const M_USERNOTTRUSTED = "USER NOT FOUND!"
+const M_SVCNOTTRUSTED = "SERVICE IS NOT A TRUSTED SERVICE!"
+const M_SVCNOTCROSSTRUSTED = "SERVICE IS NOT A CROSS-TRUSTED SERVICE!"
+
 type Database struct {
 	KDC_Port string `mapstructure:"kdc_port"`
 	Kerberos_Token string `mapstructure:"kerberos_token"`
@@ -64,7 +69,7 @@ func GetRealm(name string, db *Database) (*Realm, error) {
 		}
 	}
 	if realm==nil {
-		return nil, errors.New("Realm not found on KDC database") 
+		return nil, errors.New(M_REALMNOTFOUND) 
 	}
 	return realm, nil
 }
@@ -79,7 +84,7 @@ func GetUser(username string, rlm *Realm) (*UserPrincipal, error) {
 		}
 	}
 	if user==nil {
-		return nil, errors.New("User is not in trusted users")
+		return nil, errors.New(M_USERNOTTRUSTED)
 	}
 	return user, nil
 }
@@ -94,7 +99,7 @@ func GetService(name string, rlm *Realm) (*ServicePrincipal, error) {
 		}
 	}
 	if svc==nil {
-		return nil, errors.New("Service is not in trusted services")
+		return nil, errors.New(M_SVCNOTTRUSTED)
 	}
 	return svc, nil
 }
@@ -118,7 +123,7 @@ func GetCrossRealmService(name string, svc_rlm *Realm, src_rlm *Realm) (*Service
 		}
 	}
 	if svc==nil {
-		return nil, errors.New("Service is not in cross-trusted services")
+		return nil, errors.New(M_SVCNOTCROSSTRUSTED)
 	}
 	return svc, nil
 }
