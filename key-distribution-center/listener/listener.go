@@ -71,7 +71,7 @@ func StartKDCListener(db *dataloader.Database, wg *sync.WaitGroup, errchan chan<
 			case *message.KDCMessage_TGSReq:
 				handler.HandleTGSReq(listener, &addr, db, m.TGSReq, errchan)
 			default:
-				errchan<-err
+				errchan<-errors.New(M_UNEXPECTEDPROTO)
 				if _,err := listener.WriteToUDP(
 					[]byte(M_UNEXPECTEDPROTO),
 					&addr,

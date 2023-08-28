@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "listener",
+    srcs = ["listener.go"],
+    importpath = "github.com/megakuul/kerberos-sim/service/listener",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//service/dataloader",
+        "//service/handler",
+        "//shared/message",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

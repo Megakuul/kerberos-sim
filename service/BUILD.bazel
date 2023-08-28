@@ -12,9 +12,8 @@ go_library(
     importpath = "github.com/megakuul/kerberos-sim/service",
     visibility = ["//visibility:private"],
     deps = [
-        "//shared/message",
-        "@com_github_spf13_viper//:viper",
-        "@org_golang_google_protobuf//proto",
+        "//service/dataloader",
+        "//service/listener",
     ],
 )
 
