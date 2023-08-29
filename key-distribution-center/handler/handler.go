@@ -25,7 +25,7 @@ const M_FAILEDDECRYPTAUTH = "FAILED TO DECRYPT AUTHENTICATOR!"
 const M_TIMEOUTOFSYNC = "INVALID TIMESTAMP! (CHECK IF YOUR TIME IS IN SYNC)"
 const M_TGTCORRUPTED = "TICKET GRANTING TICKET IS CORRUPTED!"
 const M_TGTEXPIRED = "TICKET GRANTING TICKET HAS EXPIRED!"
-	
+const M_NOTALLOWED = "YOUR NOT ALLOWED TO USE THIS TICKET FROM YOUR CURRENT IP ADDRESS!"	
 
 // Max time shift of 5 minutes
 const MAX_TIME_SHIFT = uint64(300)
@@ -165,6 +165,23 @@ func HandleTGSReq(listener *net.UDPConn, addr *net.UDPAddr, db *dataloader.Datab
 	if tgt.Lifetime+tgt.Timestamp < timestamp {
 		handleErr(M_TGTEXPIRED, listener, addr, errchan)
 		return
+	}
+
+	// Check if Client is on IP List
+	// This is very inefficient, in production use a hashmap instead
+	if tgt.IP_List!=nil {
+		ip := addr.IP.String()
+		contained := false
+		for _, curip := range tgt.IP_List {
+			if ip == curip {
+				contained = true
+				break
+			}
+		}
+		if !contained {
+			handleErr(M_NOTALLOWED, listener, addr, errchan)
+			return
+		}
 	}
 
 	upn_slice:= strings.Split(tgt.UserPrincipal, "@")

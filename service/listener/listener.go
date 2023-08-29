@@ -86,8 +86,6 @@ func StartSVCListener(
 				handler.HandleSPNReq(&con, db, errchan)
 			case *message.SVCMessage_APReq:
 				handler.HandleAPReq(&con, db, m.APReq, errchan)
-			case *message.SVCMessage_CMDReq:
-				handler.HandleCMDReq(&con, db, m.CMDReq, errchan)
 			default:
 				errchan<-errors.New(M_UNEXPECTEDPROTO)
 				if _,err := con.Write(

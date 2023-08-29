@@ -74,9 +74,21 @@ func main() {
 	}
 	fmt.Println("Fetched ST (stage 3 & 4)")
 
-	_ = st
-	
-	fmt.Printf("Lifetime TGT: %v\n", as_ct.Lifetime)
-	fmt.Printf("Lifetime ST: %v\n", tgs_ct.Lifetime)
-	fmt.Printf("ServicePrincipal ST: %s\n", tgs_ct.SVCPrincipal)
+	var curinput string
+	for {
+		fmt.Printf("%s>", svc_principal_name)
+		fmt.Scanln(&curinput)
+		output, err := handler.RequestSVC(
+			svc_addr,
+			curinput,
+			user_principal_name,
+			tgs_ct.SK_SVC,
+			st,
+		)
+		if err!=nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(output)
+	}
 }

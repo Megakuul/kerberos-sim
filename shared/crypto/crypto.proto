@@ -36,3 +36,12 @@ message ST {
   uint64 Timestamp = 5;
   bytes SK_SVC = 6;
 }
+
+message AP_REQ {
+  string Request = 1;
+}
+
+message AP_RES {
+  string Response = 1;
+  uint64 Timestamp = 2;
+}

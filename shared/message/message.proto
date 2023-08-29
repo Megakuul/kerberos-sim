@@ -40,29 +40,20 @@ message SPN_Response {
   string SPN = 1;
 }
 
-message KRB_AP_Request {
+message AP_Request {
   bytes Authenticator = 1;
   bytes ST = 2;
+  bytes REQ = 3;
 }
 
-message KRB_AP_Response {
-  bytes VERIFY = 1;
-}
-
-message CMD_Request {
-  bytes TGS = 1;
-  string CMD = 2;
-}
-
-message CMD_Response {
-  string Output = 1;
+message AP_Response {
+  bytes RES = 1;
 }
 
 message SVCMessage {
   oneof M {
     SPN_Request SPNReq = 1;
-    KRB_AP_Request APReq  = 2;
-    CMD_Request CMDReq = 3;
+    AP_Request APReq  = 2;
   }	
 }
 

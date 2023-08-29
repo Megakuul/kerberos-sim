@@ -177,7 +177,75 @@ func RequestTGS(
 	return tgs_ct, Res.ST, nil
 }
 
-func RequestSVC() {
+func RequestSVC(
+	svc_addr string,
+	request string,
+	upn string,
+	sk []byte,
+	st []byte) (string, error) {
 
+	con, err := net.Dial("tcp", svc_addr)
+	if err!=nil {
+		return "", err
+	}
+	defer con.Close()
+
+	auth:= &crypto.AUTH {
+		UserPrincipal: upn,
+		Timestamp: uint64(time.Now().Unix()),
+	}
+
+	encrypted_auth, err:= crypto.EncryptAUTH(auth, sk)
+	if err!=nil {
+		return "", err
+	}
+
+	ap_req := &crypto.AP_REQ {
+		Request: request,
+	}
+
+	encrypted_ap_req, err := crypto.EncryptAP_REQ(ap_req, sk)
+	if err!=nil {
+		return "", err
+	}
+	
+	Req := &message.SVCMessage{
+		M: &message.SVCMessage_APReq{
+			APReq: &message.AP_Request{
+				Authenticator: encrypted_auth,
+				ST: st,
+				REQ: encrypted_ap_req,
+			},
+		},
+	}
+
+	bReq, err := proto.Marshal(Req)
+	if err!=nil {
+		return "", err
+	}
+	_, err = con.Write(bReq)
+	if err!=nil {
+		return "", err
+	}
+
+	bRes := make([]byte, 1024)
+	n, err := con.Read(bRes)
+	if err!=nil {
+		return "", err
+	}
+
+	Res:= &message.AP_Response{}
+	if err := proto.Unmarshal(bRes[:n], Res); err!=nil {
+		// Return the error if the svc returned a error instead of the Protobuf
+		return string(bRes), err
+	}
+
+	decrypted_ap_res, err := crypto.DecryptAP_RES(Res.RES, sk)
+	if err!=nil {
+		return "", err
+	}
+
+	// Here you could also potentially check the timestamp of the server
+	return decrypted_ap_res.Response, nil
 }
 

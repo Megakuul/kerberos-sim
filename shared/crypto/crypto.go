@@ -276,3 +276,112 @@ func DecryptST(st []byte, key []byte) (ST, error) {
 	}
 	return st_buf, nil
 }
+
+
+
+func EncryptAP_REQ(ap_req *AP_REQ, key []byte) ([]byte, error) {
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
+	if err!=nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err!=nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err!= nil {
+		return nil, err
+	}
+
+	encoded, err := proto.Marshal(ap_req)
+	if err!=nil {
+		return nil, err
+	}
+
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
+	return append(nonce, encrypted...), nil
+}
+
+func DecryptAP_REQ(ap_req []byte, key []byte) (AP_REQ, error) {
+	ap_req_buf := AP_REQ{}
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
+	if err!=nil {
+		return ap_req_buf, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err!=nil {
+		return ap_req_buf, err
+	}
+
+	nSize := gcm.NonceSize()
+	nonce, ciphertxt := ap_req[:nSize], ap_req[nSize:]
+
+	decrypted, err := gcm.Open(nil, nonce, ciphertxt, nil)
+	if err!=nil {
+		return ap_req_buf, err
+	}
+
+	if err:=proto.Unmarshal(decrypted, &ap_req_buf); err!=nil {
+		return ap_req_buf, err
+	}
+	return ap_req_buf, nil
+}
+
+
+func EncryptAP_RES(ap_res *AP_RES, key []byte) ([]byte, error) {
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
+	if err!=nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err!=nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err!= nil {
+		return nil, err
+	}
+
+	encoded, err := proto.Marshal(ap_res)
+	if err!=nil {
+		return nil, err
+	}
+
+	encrypted := gcm.Seal(nil, nonce, encoded, []byte{})
+	return append(nonce, encrypted...), nil
+}
+
+func DecryptAP_RES(ap_res []byte, key []byte) (AP_RES, error) {
+	ap_res_buf := AP_RES{}
+
+	hash:=sha256.Sum256(key)
+	block, err := aes.NewCipher(hash[:])
+	if err!=nil {
+		return ap_res_buf, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err!=nil {
+		return ap_res_buf, err
+	}
+
+	nSize := gcm.NonceSize()
+	nonce, ciphertxt := ap_res[:nSize], ap_res[nSize:]
+
+	decrypted, err := gcm.Open(nil, nonce, ciphertxt, nil)
+	if err!=nil {
+		return ap_res_buf, err
+	}
+
+	if err:=proto.Unmarshal(decrypted, &ap_res_buf); err!=nil {
+		return ap_res_buf, err
+	}
+	return ap_res_buf, nil
+}
