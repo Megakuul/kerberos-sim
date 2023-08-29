@@ -57,7 +57,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Println("Fetched TGT (stage 1 & 2)")
 
 	tgs_ct, st, err := handler.RequestTGS(
 		kdc_addr,
@@ -72,7 +71,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Println("Fetched ST (stage 3 & 4)")
 
 	var curinput string
 	for {

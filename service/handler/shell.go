@@ -18,9 +18,14 @@ var h_list = []string{
 	"Whats up",
 	"Salut",
 	"Wazzzzzzzup",
-	"Hello",
+	"Hello Sir",
 	"QUACK",
 	"LUUKAGEM",
+	"Hello Mister",
+	"Good Morning",
+	"Greetings!",
+	"Good to see you",
+	"Bad to see you",
 }
 
 func getShellOutput(input string, st *crypto.ST) (string) {
