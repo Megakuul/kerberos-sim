@@ -1,6 +1,8 @@
 Kerberos Simulator
 ==================
 
+![kerberos-sim favicon](/favicon.svg "Kerberos-Sim Icon")
+
 The Kerberos Simulator can fully simulate a Kerberos authentication.
 
 It uses protobufs on top of a UDP-Socket to communicate from client to kdc.
